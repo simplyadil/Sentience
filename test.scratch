@@ -1,0 +1,2 @@
+VAR x = 10 + 5
+PRINT(x)
