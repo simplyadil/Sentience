@@ -4,6 +4,7 @@ from utils.constants import (
     KEYWORDS,
     LETTERS,
     LETTERS_DIGITS,
+    NUM_CHARS,
     TT_ARROW,
     TT_COMMA,
     TT_DIV,
@@ -29,16 +30,16 @@ from utils.constants import (
     TT_RPAREN,
     TT_RSQUARE,
     TT_STRING,
+    WHITESPACE,
 )
 
 
-#######################################
-# TOKENS
-#######################################
-
-
 class Token:
+    """Represents a token in the source code.
+    It contains its type, value, and positional information."""
+
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
+        """Initialize a new Token instance."""
         self.type = type_
         self.value = value
 
@@ -51,20 +52,19 @@ class Token:
             self.pos_end = pos_end.copy()
 
     def matches(self, type_, value):
+        """Check whether the token matches a specific type and value."""
         return self.type == type_ and self.value == value
 
     def __repr__(self):
+        """Return the string representation of the token."""
         if self.value:
             return f"{self.type}:{self.value}"
         return f"{self.type}"
 
 
-#######################################
-# POSITION
-#######################################
-
-
 class Position:
+    """Represents a specific location in the source code."""
+
     def __init__(self, idx, ln, col, fn, ftxt):
         self.idx = idx
         self.ln = ln
@@ -73,6 +73,7 @@ class Position:
         self.ftxt = ftxt
 
     def advance(self, current_char=None):
+        """Advance the position by one character."""
         self.idx += 1
         self.col += 1
 
@@ -83,16 +84,15 @@ class Position:
         return self
 
     def copy(self):
+        """Create a copy of the current position."""
         return Position(self.idx, self.ln, self.col, self.fn, self.ftxt)
 
 
-#######################################
-# LEXER
-#######################################
-
-
 class Lexer:
+    """A lexical analyzer (lexer) for converting source code into a list of tokens."""
+
     def __init__(self, fn, text):
+        """Initialize the lexer with a filename and source text"""
         self.fn = fn
         self.text = text
         self.pos = Position(-1, 0, -1, fn, text)
@@ -100,16 +100,18 @@ class Lexer:
         self.advance()
 
     def advance(self):
+        """Advance the lexer's position by one character, updating the current character."""
         self.pos.advance(self.current_char)
         self.current_char = (
             self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
         )
 
     def make_tokens(self):
+        """Process the entire source text and convert it into a list of tokens."""
         tokens = []
 
-        while self.current_char != None:
-            if self.current_char in " \t":
+        while self.current_char is not None:
+            if self.current_char in WHITESPACE:
                 self.advance()
             elif self.current_char == "#":
                 self.skip_comment()
@@ -172,11 +174,12 @@ class Lexer:
         return tokens, None
 
     def make_number(self):
+        """Parse a number (integer or float) from the source text."""
         num_str = ""
         dot_count = 0
         pos_start = self.pos.copy()
 
-        while self.current_char != None and self.current_char in DIGITS + ".":
+        while self.current_char is not None and self.current_char in NUM_CHARS:
             if self.current_char == ".":
                 if dot_count == 1:
                     break
@@ -190,6 +193,7 @@ class Lexer:
             return Token(TT_FLOAT, float(num_str), pos_start, self.pos)
 
     def make_string(self):
+        """Parse a string litteral from the source text."""
         string = ""
         pos_start = self.pos.copy()
         escape_character = False
@@ -197,7 +201,7 @@ class Lexer:
 
         escape_characters = {"n": "\n", "t": "\t", '"': '"'}
 
-        while self.current_char != None and (
+        while self.current_char is not None and (
             self.current_char != '"' or escape_character
         ):
             if escape_character:
@@ -206,7 +210,7 @@ class Lexer:
                 if self.current_char == "\\":
                     escape_character = True
                     self.advance()
-                    continue  # The above statements are useless without thiss one.
+                    continue
                 else:
                     string += self.current_char
             self.advance()
@@ -216,10 +220,13 @@ class Lexer:
         return Token(TT_STRING, string, pos_start, self.pos)
 
     def make_identifier(self):
+        """Parse an identifier or keyword from the source text."""
         id_str = ""
         pos_start = self.pos.copy()
 
-        while self.current_char != None and self.current_char in LETTERS_DIGITS + "_":
+        while (
+            self.current_char is not None and self.current_char in LETTERS_DIGITS + "_"
+        ):
             id_str += self.current_char
             self.advance()
 
@@ -227,6 +234,7 @@ class Lexer:
         return Token(tok_type, id_str, pos_start, self.pos)
 
     def make_minus_or_arrow(self):
+        """Distinguish between a minus operator and an arrow token ('->')."""
         tok_type = TT_MINUS
         pos_start = self.pos.copy()
         self.advance()
@@ -238,6 +246,7 @@ class Lexer:
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
     def make_not_equals(self):
+        """Parse the '!=' operator."""
         pos_start = self.pos.copy()
         self.advance()
 
@@ -249,6 +258,7 @@ class Lexer:
         return None, ExpectedCharError(pos_start, self.pos, "'=' (after '!')")
 
     def make_equals(self):
+        """Parse the '=' and/or '==' operator."""
         tok_type = TT_EQ
         pos_start = self.pos.copy()
         self.advance()
@@ -260,6 +270,7 @@ class Lexer:
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
     def make_less_than(self):
+        """Parse the '<' and/or '<=' operator."""
         tok_type = TT_LT
         pos_start = self.pos.copy()
         self.advance()
@@ -271,6 +282,7 @@ class Lexer:
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
     def make_greater_than(self):
+        """Parse the '>' and/or '>=' operator."""
         tok_type = TT_GT
         pos_start = self.pos.copy()
         self.advance()
@@ -282,6 +294,7 @@ class Lexer:
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
     def skip_comment(self):
+        """Skip over a comment in the source text."""
         self.advance()
 
         while self.current_char != "\n":
