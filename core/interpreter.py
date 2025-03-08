@@ -1,8 +1,7 @@
-#######################################
-# INTERPRETER
-#######################################
-
 from functions.basefun import BaseFunction
+from utils.errors import RTError
+from execution.runtime import RTResult
+from core.values import List, Number, String
 from utils.constants import (
     TT_DIV,
     TT_EE,
@@ -17,23 +16,34 @@ from utils.constants import (
     TT_PLUS,
     TT_POW,
 )
-from utils.errors import RTError
-from execution.runtime import RTResult
-from core.values import List, Number, String
 
 
 class Interpreter:
     def visit(self, node, context):
+        """
+        Dispatch the appropriate visitor method for a given AST node.
+
+        Determines the method name dynamically based on the node's class
+        (e.g., 'visit_NumberNode') and invokes that method with the node
+        and execution context.
+        """
         method_name = f"visit_{type(node).__name__}"
         method = getattr(self, method_name, self.no_visit_method)
         return method(node, context)
 
     def no_visit_method(self, node, context):
+        """
+        Handle the case when a visitor method for a given node type is not defined.
+
+        This method is called by 'visit()' if the specific visitor method is missing,
+        raising an exception to indicate that the node type is not supported.
+        """
         raise Exception(f"No visit_{type(node).__name__} method defined")
 
     ###################################
 
     def visit_NumberNode(self, node, context):
+        """Visit a number literal node and return its numeric value wrapped in an RTResult."""
         return RTResult().success(
             Number(node.tok.value)
             .set_context(context)
@@ -41,6 +51,7 @@ class Interpreter:
         )
 
     def visit_StringNode(self, node, context):
+        """Visit a string literal node and return its string value wrapped in an RTResult."""
         return RTResult().success(
             String(node.tok.value)
             .set_context(context)
@@ -48,6 +59,11 @@ class Interpreter:
         )
 
     def visit_ListNode(self, node, context):
+        """Visit a list literal node and recursively evaluate its elements.
+
+        Iterates over each element node in the list, evaluates them, and collects the resulting values.
+        Returns a List value with the evaluated elements, setting its context and positional info.
+        """
         res = RTResult()
         elements = []
 
@@ -61,6 +77,7 @@ class Interpreter:
         )
 
     def visit_VarAccessNode(self, node, context):
+        """Visit a variable access node, retrieve the variable's value from the symbol table, and return it."""
         res = RTResult()
         var_name = node.var_name_tok.value
         value = context.symbol_table.get(var_name)
@@ -79,6 +96,7 @@ class Interpreter:
         return res.success(value)
 
     def visit_VarAssignNode(self, node, context):
+        """Visit a variable assignment node, evaluate the assigned expression, and update the symbol table."""
         res = RTResult()
         var_name = node.var_name_tok.value
         value = res.register(self.visit(node.value_node, context))
@@ -89,6 +107,7 @@ class Interpreter:
         return res.success(value)
 
     def visit_BinOpNode(self, node, context):
+        """Visit a binary operation node, evaluate both operands, and perform the operation."""
         res = RTResult()
         left = res.register(self.visit(node.left_node, context))
         if res.should_return():
@@ -130,6 +149,8 @@ class Interpreter:
             return res.success(result.set_pos(node.pos_start, node.pos_end))
 
     def visit_UnaryOpNode(self, node, context):
+        """Visit a unary operation node, evaluate its operand
+        (such as minus (negation) or logical NOT), and apply the unary operator."""
         res = RTResult()
         number = res.register(self.visit(node.node, context))
         if res.should_return():
@@ -148,6 +169,12 @@ class Interpreter:
             return res.success(number.set_pos(node.pos_start, node.pos_end))
 
     def visit_IfNode(self, node, context):
+        """Visit an if-statement node and execute the corresponding branch.
+
+        Evaluates each condition in the if/elif cases sequentially. If a condition is true, its
+        corresponding expression (or statement block) is evaluated and returned. If no conditions are true,
+        the else branch (if present) is evaluated.
+        """
         res = RTResult()
 
         for condition, expr, should_return_null in node.cases:
@@ -171,6 +198,12 @@ class Interpreter:
         return res.success(Number.null)
 
     def visit_ForNode(self, node, context):
+        """Visit a for-loop node, iterating over a range of values and evaluating the loop body.
+
+        Evaluates the start, end, and optional step expressions to determine the loop range.
+        For each iteration, assigns the current value to the loop variable and evaluates the body.
+        Accumulates the results (if required) and handles control flow (continue/break).
+        """
         res = RTResult()
         elements = []
 
@@ -225,6 +258,12 @@ class Interpreter:
         )
 
     def visit_WhileNode(self, node, context):
+        """Visit a while-loop node, repeatedly evaluating its condition and executing the body.
+
+        Continuously evaluates the loop's condition. If true, it evaluates the loop body, accumulating
+        results if applicable, and handles control flow signals (continue/break). When the condition becomes false,
+        returns the accumulated results.
+        """
         res = RTResult()
         elements = []
 
@@ -261,6 +300,12 @@ class Interpreter:
         )
 
     def visit_FuncDefNode(self, node, context):
+        """Visit a function definition node and create a function value.
+
+        Evaluates the function definition by extracting its name, parameters, and body.
+        Creates a Function object with these attributes, sets its context and position, and registers it
+        in the symbol table if it has a name.
+        """
         res = RTResult()
 
         func_name = node.var_name_tok.value if node.var_name_tok else None
@@ -278,6 +323,12 @@ class Interpreter:
         return res.success(func_value)
 
     def visit_CallNode(self, node, context):
+        """Visit a function call node, evaluate the callable and its arguments, and execute the function.
+
+        Evaluates the node representing the function to be called, then evaluates each argument.
+        Executes the function with the evaluated arguments in a new execution context,
+        and returns the function's result.
+        """
         res = RTResult()
         args = []
 
@@ -302,6 +353,11 @@ class Interpreter:
         return res.success(return_value)
 
     def visit_ReturnNode(self, node, context):
+        """Visit a return node and signal a function return.
+
+        Evaluates the expression (if any) following the return keyword, and wraps it in an RTResult
+        that indicates a function return.
+        """
         res = RTResult()
 
         if node.node_to_return:
@@ -314,20 +370,35 @@ class Interpreter:
         return res.success_return(value)
 
     def visit_ContinueNode(self, node, context):
+        """Visit a continue node and signal that the current loop should continue to its next iteration."""
         return RTResult().success_continue()
 
     def visit_BreakNode(self, node, context):
+        """Visit a break node and signal that the current loop should be exited."""
         return RTResult().success_break()
 
 
 class Function(BaseFunction):
+    """Represents a user-defined function in the language."""
+
     def __init__(self, name, body_node, arg_names, should_auto_return):
+        """Initialize a new Function instance."""
+
         super().__init__(name)
         self.body_node = body_node
         self.arg_names = arg_names
         self.should_auto_return = should_auto_return
 
     def execute(self, args):
+        """Execute the function with the provided arguments.
+
+        This method performs the following steps:
+          1. Creates a new execution context for the function.
+          2. Checks and populates the arguments into the context.
+          3. Uses an Interpreter instance to visit and evaluate the function body.
+          4. Determines the return value based on the auto-return flag, the interpreter's return value,
+             or defaults to Number.null.
+        """
         res = RTResult()
         interpreter = Interpreter()
         exec_ctx = self.generate_new_context()
@@ -348,6 +419,7 @@ class Function(BaseFunction):
         return res.success(ret_value)
 
     def copy(self):
+        """Create a copy of the function instance."""
         copy = Function(
             self.name, self.body_node, self.arg_names, self.should_auto_return
         )
@@ -356,4 +428,5 @@ class Function(BaseFunction):
         return copy
 
     def __repr__(self):
+        """Return the string representation of the function."""
         return f"<function {self.name}>"
