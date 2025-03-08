@@ -5,6 +5,7 @@ from builtins import global_symbol_table
 
 from core.values import Context
 
+
 def run(fn, text):
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
@@ -17,7 +18,7 @@ def run(fn, text):
         return None, ast.error
 
     interpreter = Interpreter()
-    context = Context('<program>')
+    context = Context("<program>")
     context.symbol_table = global_symbol_table
     result = interpreter.visit(ast.node, context)
 
