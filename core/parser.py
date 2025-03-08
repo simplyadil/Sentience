@@ -2,7 +2,7 @@
 # PARSE RESULT
 #######################################
 
-from constants import (TT_ARROW,
+from utils.constants import (TT_ARROW,
                        TT_COMMA, TT_DIV, TT_EE,
                        TT_EOF, TT_EQ, TT_FLOAT,
                        TT_GT, TT_GTE, TT_IDENTIFIER,
@@ -11,8 +11,8 @@ from constants import (TT_ARROW,
                        TT_MINUS, TT_MUL, TT_NE,
                        TT_NEWLINE, TT_PLUS, TT_POW,
                        TT_RPAREN, TT_RSQUARE, TT_STRING)
-from errors import InvalidSyntaxError
-from nodes import (BinOpNode, BreakNode,
+from utils.errors import InvalidSyntaxError
+from core.nodes import (BinOpNode, BreakNode,
                    CallNode, ContinueNode,
                    ForNode, FuncDefNode,
                    IfNode, ListNode, NumberNode,

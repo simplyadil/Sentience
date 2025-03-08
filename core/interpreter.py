@@ -2,12 +2,12 @@
 # INTERPRETER
 #######################################
 
-from basefun import BaseFunction
-from constants import (TT_DIV, TT_EE,TT_GT, TT_GTE,TT_KEYWORD,TT_LT, TT_LTE,
+from functions.basefun import BaseFunction
+from utils.constants import (TT_DIV, TT_EE,TT_GT, TT_GTE,TT_KEYWORD,TT_LT, TT_LTE,
                        TT_MINUS, TT_MUL, TT_NE,TT_PLUS, TT_POW,)
-from errors import RTError
-from runtime import RTResult
-from values import List, Number, String
+from utils.errors import RTError
+from runtime.runtime import RTResult
+from core.values import List, Number, String
 
 
 class Interpreter:

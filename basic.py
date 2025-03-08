@@ -1,6 +1,6 @@
 import sys
 
-from builtinfun import run
+from functions.builtinfun import run
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

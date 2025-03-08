@@ -1,5 +1,5 @@
-from errors import ExpectedCharError, IllegalCharError
-from constants import (DIGITS, KEYWORDS, LETTERS,
+from utils.errors import ExpectedCharError, IllegalCharError
+from utils.constants import (DIGITS, KEYWORDS, LETTERS,
                        LETTERS_DIGITS, TT_ARROW,
                        TT_COMMA, TT_DIV, TT_EE,
                        TT_EOF, TT_EQ, TT_FLOAT,

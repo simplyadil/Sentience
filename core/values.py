@@ -1,6 +1,6 @@
 import math
-from errors import RTError
-from runtime import RTResult
+from utils.errors import RTError
+from runtime.runtime import RTResult
 
 #######################################
 # CONTEXT

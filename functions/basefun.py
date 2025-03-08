@@ -1,7 +1,7 @@
 
-from errors import RTError
-from runtime import RTResult
-from values import Context, Number, SymbolTable, Value
+from utils.errors import RTError
+from runtime.runtime import RTResult
+from core.values import Context, Number, SymbolTable, Value
 
 
 class BaseFunction(Value):
