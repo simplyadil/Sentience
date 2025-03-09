@@ -101,7 +101,7 @@ class ParseResult:
 
     def failure(self, error):
         """Mark the parsing as failed with a provided error.
-        
+
         If no error was previously recorded or if no tokens were advanced since the last successful operation,
         the error is updated.
         """
@@ -151,7 +151,6 @@ class Parser:
                 )
             )
         return res
-
 
     def statements(self):
         """Parse multiple statements, handling newlines as statement separators."""
@@ -341,7 +340,7 @@ class Parser:
 
     def call(self):
         """Parse a function call expression.
-    
+
         Checks if an atom (primary expression) is followed by parentheses,
         indicating a function call with arguments.
         """
@@ -393,10 +392,10 @@ class Parser:
 
     def atom(self):
         """Parse an atomic expression.
-    
-    Handles literals (integers, floats, strings), variable access,
-    parenthesized expressions, list expressions, and control constructs (if, for, while, fun).
-    """
+
+        Handles literals (integers, floats, strings), variable access,
+        parenthesized expressions, list expressions, and control constructs (if, for, while, fun).
+        """
         res = ParseResult()
         tok = self.current_tok
 
@@ -663,10 +662,10 @@ class Parser:
 
     def for_expr(self):
         """Parse a for-loop expression.
-    
-    Processes the loop variable, start, end, optional step, and body.
-    Handles both single-statement and block (newline-separated) loop bodies.
-    """
+
+        Processes the loop variable, start, end, optional step, and body.
+        Handles both single-statement and block (newline-separated) loop bodies.
+        """
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, "FOR"):
@@ -782,8 +781,9 @@ class Parser:
 
     def while_expr(self):
         """Parse a while-loop expression.
-    
-    Evaluates the loop condition and body, handling both single-statement and block bodies."""
+
+        Evaluates the loop condition and body, handling both single-statement and block bodies.
+        """
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, "WHILE"):
@@ -844,10 +844,10 @@ class Parser:
 
     def func_def(self):
         """Parse a function definition.
-    
-    Processes the function name (if provided), parameter list, and function body.
-    Supports both single-expression and block-style function definitions.
-    """
+
+        Processes the function name (if provided), parameter list, and function body.
+        Supports both single-expression and block-style function definitions.
+        """
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, "FUN"):
@@ -972,13 +972,12 @@ class Parser:
 
         return res.success(FuncDefNode(var_name_tok, arg_name_toks, body, False))
 
-
     def bin_op(self, func_a, ops, func_b=None):
         """Parse a binary operation using two operand parsing functions.
-    
-    This is a helper method that applies an operator (or set of operators) between two expressions.
-    If func_b is not provided, it defaults to func_a.
-    """
+
+        This is a helper method that applies an operator (or set of operators) between two expressions.
+        If func_b is not provided, it defaults to func_a.
+        """
         if func_b == None:
             func_b = func_a
 

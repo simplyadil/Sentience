@@ -8,6 +8,21 @@ from execution.runtime import RTResult
 
 
 class Context:
+    """Represents an execution context for the interpreter.
+
+    A context holds information about the environment in which code is executed,
+    including a display name (for identification in error messages or debugging),
+    a reference to its parent context (to allow for nested scopes), and the position
+    in the parent where this context was entered. It also stores the symbol table
+    that maps variable names to their corresponding runtime values.
+
+    Attributes:
+        display_name (str): A name describing this context (e.g., "<program>", function name).
+        parent (Context, optional): The parent context, if any.
+        parent_entry_pos (Position, optional): The position in the parent context where this context was entered.
+        symbol_table (SymbolTable or None): The symbol table associated with this context.
+    """
+
     def __init__(self, display_name, parent=None, parent_entry_pos=None):
         self.display_name = display_name
         self.parent = parent
@@ -21,20 +36,25 @@ class Context:
 
 
 class SymbolTable:
+    """Represents a symbol table for storing and retrieving variable values during execution."""
+
     def __init__(self, parent=None):
         self.symbols = {}
         self.parent = parent
 
     def get(self, name):
+        """Retrieve a value by its name from the symbol table."""
         value = self.symbols.get(name, None)
         if value == None and self.parent:
             return self.parent.get(name)
         return value
 
     def set(self, name, value):
+        """Set a value for a given name in the symbol table."""
         self.symbols[name] = value
 
     def remove(self, name):
+        """Remove a variable from the symbol table."""
         del self.symbols[name]
 
 
@@ -44,16 +64,25 @@ class SymbolTable:
 
 
 class Value:
+    """Base class for all runtime values.
+
+    Provides methods to set and retrieve positional and contextual information, as well as
+    stubs for arithmetic, comparison, and logical operations that subclasses should override.
+    """
+
     def __init__(self):
+        """Initialize the value by setting its position and context to default (None)."""
         self.set_pos()
         self.set_context()
 
     def set_pos(self, pos_start=None, pos_end=None):
+        """Set the starting and ending positions of this value in the source code."""
         self.pos_start = pos_start
         self.pos_end = pos_end
         return self
 
     def set_context(self, context=None):
+        """Set the execution context for this value."""
         self.context = context
         return self
 
@@ -115,6 +144,11 @@ class Value:
 
 
 class Number(Value):
+    """Represents a numeric value.
+
+    Inherits from Value and implements arithmetic, comparison, and logical operations for numbers.
+    """
+
     def __init__(self, value):
         super().__init__()
         self.value = value
@@ -246,6 +280,12 @@ Number.math_PI = Number(math.pi)
 
 
 class String(Value):
+    """Represents a string value.
+
+    Inherits from Value and implements operations such as concatenation, repetition,
+    and comparisons specific to strings.
+    """
+
     def __init__(self, value):
         super().__init__()
         self.value = value
@@ -311,6 +351,12 @@ class String(Value):
 
 
 class List(Value):
+    """Represents a list value.
+
+    Inherits from Value and implements operations specific to lists, such as element addition,
+    removal, concatenation, and element access.
+    """
+
     def __init__(self, elements):
         super().__init__()
         self.elements = elements

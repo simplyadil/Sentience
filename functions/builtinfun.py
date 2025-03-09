@@ -32,10 +32,21 @@ def run(fn, text):
 
 
 class BuiltInFunction(BaseFunction):
+    """Represents a built-in function in the runtime."""
+
     def __init__(self, name):
+        """Initialize a new BuiltInFunction with the given name."""
         super().__init__(name)
 
     def execute(self, args):
+        """Execute the built-in function with the provided arguments.
+
+        This method:
+          1. Generates a new execution context.
+          2. Dynamically selects the specific execute method (e.g., execute_print) based on the function name.
+          3. Checks that the correct number of arguments is provided.
+          4. Calls the specific built-in function implementation and returns its result.
+        """
         res = RTResult()
         exec_ctx = self.generate_new_context()
 
@@ -52,37 +63,47 @@ class BuiltInFunction(BaseFunction):
         return res.success(return_value)
 
     def no_visit_method(self, node, context):
+        """Handle the case where no execute method is defined for this built-in function."""
         raise Exception(f"No execute_{self.name} method defined")
 
     def copy(self):
+        """Create a copy of this built-in function."""
         copy = BuiltInFunction(self.name)
         copy.set_context(self.context)
         copy.set_pos(self.pos_start, self.pos_end)
         return copy
 
     def __repr__(self):
+        """Return the string representation of the built-in function."""
         return f"<built-in function {self.name}>"
 
     #####################################
 
     def execute_print(self, exec_ctx):
+        """Built-in function to print a value to the console."""
         print(str(exec_ctx.symbol_table.get("value")))
         return RTResult().success(Number.null)
 
     execute_print.arg_names = ["value"]
 
     def execute_print_ret(self, exec_ctx):
+        """Built-in function to return a printed value as a string.
+
+        Retrieves the value associated with the key "value" and returns it as a String.
+        """
         return RTResult().success(String(str(exec_ctx.symbol_table.get("value"))))
 
     execute_print_ret.arg_names = ["value"]
 
     def execute_input(self, exec_ctx):
+        """Built-in function to take input from the user."""
         text = input()
         return RTResult().success(String(text))
 
     execute_input.arg_names = []
 
     def execute_input_int(self, exec_ctx):
+        """Built-in function to take integer input from the user."""
         while True:
             text = input()
             try:
@@ -95,36 +116,42 @@ class BuiltInFunction(BaseFunction):
     execute_input_int.arg_names = []
 
     def execute_clear(self, exec_ctx):
+        """Built-in function to clear the console."""
         os.system("cls" if os.name == "nt" else "cls")
         return RTResult().success(Number.null)
 
     execute_clear.arg_names = []
 
     def execute_is_number(self, exec_ctx):
+        """Built-in function to check if a value is a Number."""
         is_number = isinstance(exec_ctx.symbol_table.get("value"), Number)
         return RTResult().success(Number.true if is_number else Number.false)
 
     execute_is_number.arg_names = ["value"]
 
     def execute_is_string(self, exec_ctx):
+        """Built-in function to check if a value is a String."""
         is_number = isinstance(exec_ctx.symbol_table.get("value"), String)
         return RTResult().success(Number.true if is_number else Number.false)
 
     execute_is_string.arg_names = ["value"]
 
     def execute_is_list(self, exec_ctx):
+        """Built-in function to check if a value is a List."""
         is_number = isinstance(exec_ctx.symbol_table.get("value"), List)
         return RTResult().success(Number.true if is_number else Number.false)
 
     execute_is_list.arg_names = ["value"]
 
     def execute_is_function(self, exec_ctx):
+        """Built-in function to check if a value is a function."""
         is_number = isinstance(exec_ctx.symbol_table.get("value"), BaseFunction)
         return RTResult().success(Number.true if is_number else Number.false)
 
     execute_is_function.arg_names = ["value"]
 
     def execute_append(self, exec_ctx):
+        """Built-in function to append a value to a list."""
         list_ = exec_ctx.symbol_table.get("list")
         value = exec_ctx.symbol_table.get("value")
 
@@ -144,6 +171,7 @@ class BuiltInFunction(BaseFunction):
     execute_append.arg_names = ["list", "value"]
 
     def execute_pop(self, exec_ctx):
+        """Built-in function to pop an element from a list."""
         list_ = exec_ctx.symbol_table.get("list")
         index = exec_ctx.symbol_table.get("index")
 
@@ -183,6 +211,7 @@ class BuiltInFunction(BaseFunction):
     execute_pop.arg_names = ["list", "index"]
 
     def execute_extend(self, exec_ctx):
+        """Built-in function to extend one list with another."""
         listA = exec_ctx.symbol_table.get("listA")
         listB = exec_ctx.symbol_table.get("listB")
 
@@ -212,6 +241,7 @@ class BuiltInFunction(BaseFunction):
     execute_extend.arg_names = ["listA", "listB"]
 
     def execute_len(self, exec_ctx):
+        """Built-in function to obtain the length of a list or string."""
         list_ = exec_ctx.symbol_table.get("list")
 
         if not isinstance(list_, List) and not isinstance(list_, String):
@@ -232,6 +262,7 @@ class BuiltInFunction(BaseFunction):
     execute_len.arg_names = ["list"]
 
     def execute_run(self, exec_ctx):
+        """Built-in function to run a script from a file."""
         fn = exec_ctx.symbol_table.get("fn")
 
         if not isinstance(fn, String):
@@ -290,11 +321,6 @@ BuiltInFunction.pop = BuiltInFunction("pop")
 BuiltInFunction.extend = BuiltInFunction("extend")
 BuiltInFunction.len = BuiltInFunction("len")
 BuiltInFunction.run = BuiltInFunction("run")
-
-
-#######################################
-# RUN
-#######################################
 
 
 global_symbol_table = SymbolTable()
