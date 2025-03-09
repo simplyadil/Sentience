@@ -1,7 +1,21 @@
-#######################################
-# PARSE RESULT
-#######################################
-
+from utils.errors import InvalidSyntaxError
+from core.nodes import (
+    BinOpNode,
+    BreakNode,
+    CallNode,
+    ContinueNode,
+    ForNode,
+    FuncDefNode,
+    IfNode,
+    ListNode,
+    NumberNode,
+    ReturnNode,
+    StringNode,
+    UnaryOpNode,
+    VarAccessNode,
+    VarAssignNode,
+    WhileNode,
+)
 from utils.constants import (
     TT_ARROW,
     TT_COMMA,
@@ -29,28 +43,21 @@ from utils.constants import (
     TT_RSQUARE,
     TT_STRING,
 )
-from utils.errors import InvalidSyntaxError
-from core.nodes import (
-    BinOpNode,
-    BreakNode,
-    CallNode,
-    ContinueNode,
-    ForNode,
-    FuncDefNode,
-    IfNode,
-    ListNode,
-    NumberNode,
-    ReturnNode,
-    StringNode,
-    UnaryOpNode,
-    VarAccessNode,
-    VarAssignNode,
-    WhileNode,
-)
 
 
 class ParseResult:
+    """Represents the result of a parsing operation.
+
+    Attributes:
+        error (Error or None): The error encountered during parsing, if any.
+        node (AST Node or None): The AST node produced by successful parsing.
+        last_registered_advance_count (int): The advancement count from the last registration.
+        advance_count (int): Total number of tokens advanced during parsing.
+        to_reverse_count (int): The number of tokens to reverse (backtrack) when an error occurs.
+    """
+
     def __init__(self):
+        """Initialize a new ParseResult instance with no node and no error."""
         self.error = None
         self.node = None
         self.last_registered_advance_count = 0
@@ -58,10 +65,16 @@ class ParseResult:
         self.to_reverse_count = 0
 
     def register_advancement(self):
+        """Record an advancement in the token index."""
         self.last_registered_advance_count = 1
         self.advance_count += 1
 
     def register(self, res):
+        """Register the result from a sub-parsing operation.
+
+        This method updates the advance count based on the provided ParseResult (res). If the sub-result
+        contains an error, it is propagated. Finally, it returns the node from the sub-result.
+        """
         self.last_registered_advance_count = res.advance_count
         self.advance_count += res.advance_count
         if res.error:
@@ -69,16 +82,29 @@ class ParseResult:
         return res.node
 
     def try_register(self, res):
+        """
+        Attempt to register a sub-parsing result and backtrack if an error occurs.
+
+        If the provided result contains an error, the method stores
+        the advance count for reversal and returns None.
+        Otherwise, it registers the result and returns its node.
+        """
         if res.error:
             self.to_reverse_count = res.advance_count
             return None
         return self.register(res)
 
     def success(self, node):
+        """Mark the parsing as successful with a given AST node."""
         self.node = node
         return self
 
     def failure(self, error):
+        """Mark the parsing as failed with a provided error.
+        
+        If no error was previously recorded or if no tokens were advanced since the last successful operation,
+        the error is updated.
+        """
         if not self.error or self.last_registered_advance_count == 0:
             self.error = error
         return self
@@ -91,25 +117,30 @@ class ParseResult:
 
 class Parser:
     def __init__(self, tokens):
+        """Initialize the parser with a list of tokens."""
         self.tokens = tokens
         self.tok_idx = -1
         self.advance()
 
     def advance(self):
+        """Advance the token index to the next token and update the current token."""
         self.tok_idx += 1
         self.update_current_tok()
         return self.current_tok
 
     def reverse(self, amount=1):
+        """Reverse the token index by a specified amount."""
         self.tok_idx -= amount
         self.update_current_tok()
         return self.current_tok
 
     def update_current_tok(self):
+        """Update the current token based on the current token index."""
         if self.tok_idx >= 0 and self.tok_idx < len(self.tokens):
             self.current_tok = self.tokens[self.tok_idx]
 
     def parse(self):
+        """Parse the list of tokens to generate the Abstract Syntax Tree (AST)."""
         res = self.statements()
         if not res.error and self.current_tok.type != TT_EOF:
             return res.failure(
@@ -121,9 +152,9 @@ class Parser:
             )
         return res
 
-    ###################################
 
     def statements(self):
+        """Parse multiple statements, handling newlines as statement separators."""
         res = ParseResult()
         statements = []
         pos_start = self.current_tok.pos_start.copy()
@@ -162,6 +193,7 @@ class Parser:
         )
 
     def statement(self):
+        """Parse a single statement, which could be a return, continue, break, or an expression."""
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
 
@@ -200,6 +232,7 @@ class Parser:
         return res.success(expr)
 
     def expr(self):
+        """Parse an expression, which may include variable assignments or binary operations."""
         res = ParseResult()
 
         if self.current_tok.matches(TT_KEYWORD, "VAR"):
@@ -251,6 +284,7 @@ class Parser:
         return res.success(node)
 
     def comp_expr(self):
+        """Parse a comparison expression, handling unary 'NOT' or binary comparison operators."""
         res = ParseResult()
 
         if self.current_tok.matches(TT_KEYWORD, "NOT"):
@@ -279,12 +313,15 @@ class Parser:
         return res.success(node)
 
     def arith_expr(self):
+        """Parse an arithmetic expression involving addition and subtraction."""
         return self.bin_op(self.term, (TT_PLUS, TT_MINUS))
 
     def term(self):
+        """Parse a term in an arithmetic expression, handling multiplication and division."""
         return self.bin_op(self.factor, (TT_MUL, TT_DIV))
 
     def factor(self):
+        """Parse a factor in an arithmetic expression, handling unary plus and minus."""
         res = ParseResult()
         tok = self.current_tok
 
@@ -299,9 +336,15 @@ class Parser:
         return self.power()
 
     def power(self):
+        """Parse an expression involving the power operator."""
         return self.bin_op(self.call, (TT_POW,), self.factor)
 
     def call(self):
+        """Parse a function call expression.
+    
+        Checks if an atom (primary expression) is followed by parentheses,
+        indicating a function call with arguments.
+        """
         res = ParseResult()
         atom = res.register(self.atom())
         if res.error:
@@ -349,6 +392,11 @@ class Parser:
         return res.success(atom)
 
     def atom(self):
+        """Parse an atomic expression.
+    
+    Handles literals (integers, floats, strings), variable access,
+    parenthesized expressions, list expressions, and control constructs (if, for, while, fun).
+    """
         res = ParseResult()
         tok = self.current_tok
 
@@ -425,6 +473,7 @@ class Parser:
         )
 
     def list_expr(self):
+        """Parse a list expression enclosed in square brackets."""
         res = ParseResult()
         element_nodes = []
         pos_start = self.current_tok.pos_start.copy()
@@ -480,6 +529,7 @@ class Parser:
         )
 
     def if_expr(self):
+        """Parse an if-expression, including any 'elif' and 'else' clauses."""
         res = ParseResult()
         all_cases = res.register(self.if_expr_cases("IF"))
         if res.error:
@@ -488,9 +538,11 @@ class Parser:
         return res.success(IfNode(cases, else_case))
 
     def if_expr_b(self):
+        """Parse an 'elif' clause for an if-expression."""
         return self.if_expr_cases("ELIF")
 
     def if_expr_c(self):
+        """Parse an 'else' clause for an if-expression."""
         res = ParseResult()
         else_case = None
 
@@ -527,6 +579,7 @@ class Parser:
         return res.success(else_case)
 
     def if_expr_b_or_c(self):
+        """Decide whether to parse an 'elif' clause or an 'else' clause for an if-expression."""
         res = ParseResult()
         cases, else_case = [], None
 
@@ -543,6 +596,7 @@ class Parser:
         return res.success((cases, else_case))
 
     def if_expr_cases(self, case_keyword):
+        """Parse the cases of an if-expression for a given keyword ('IF', 'ELIF')."""
         res = ParseResult()
         cases = []
         else_case = None
@@ -608,6 +662,11 @@ class Parser:
         return res.success((cases, else_case))
 
     def for_expr(self):
+        """Parse a for-loop expression.
+    
+    Processes the loop variable, start, end, optional step, and body.
+    Handles both single-statement and block (newline-separated) loop bodies.
+    """
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, "FOR"):
@@ -722,6 +781,9 @@ class Parser:
         )
 
     def while_expr(self):
+        """Parse a while-loop expression.
+    
+    Evaluates the loop condition and body, handling both single-statement and block bodies."""
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, "WHILE"):
@@ -781,6 +843,11 @@ class Parser:
         return res.success(WhileNode(condition, body, False))
 
     def func_def(self):
+        """Parse a function definition.
+    
+    Processes the function name (if provided), parameter list, and function body.
+    Supports both single-expression and block-style function definitions.
+    """
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, "FUN"):
@@ -905,9 +972,13 @@ class Parser:
 
         return res.success(FuncDefNode(var_name_tok, arg_name_toks, body, False))
 
-    ###################################
 
     def bin_op(self, func_a, ops, func_b=None):
+        """Parse a binary operation using two operand parsing functions.
+    
+    This is a helper method that applies an operator (or set of operators) between two expressions.
+    If func_b is not provided, it defaults to func_a.
+    """
         if func_b == None:
             func_b = func_a
 
