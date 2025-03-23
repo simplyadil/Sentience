@@ -16,9 +16,14 @@ from utils.constants import (
     TT_PLUS,
     TT_POW,
 )
+from core.ai_runtime import AIManager, EmbeddingManager
 
 
 class Interpreter:
+    def __init__(self):
+        self.ai_manager = AIManager()
+        self.embedding_manager = EmbeddingManager()
+
     def visit(self, node, context):
         """
         Dispatch the appropriate visitor method for a given AST node.
@@ -376,6 +381,93 @@ class Interpreter:
     def visit_BreakNode(self, node, context):
         """Visit a break node and signal that the current loop should be exited."""
         return RTResult().success_break()
+
+    def visit_EmbedNode(self, node, context):
+        """Visit an embedding node and generate embeddings for the text."""
+        res = RTResult()
+        
+        text = res.register(self.visit(node.text_node, context))
+        if res.should_return():
+            return res
+            
+        if not isinstance(text, String):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                "First argument must be a string",
+                context
+            ))
+            
+        model_name = 'default'
+        if node.model_node:
+            model = res.register(self.visit(node.model_node, context))
+            if res.should_return():
+                return res
+            model_name = model.value
+            
+        try:
+            embedding = self.embedding_manager.embed(text.value, model_name)
+            return res.success(embedding)
+        except Exception as e:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Error generating embedding: {str(e)}",
+                context
+            ))
+
+    def visit_AICallNode(self, node, context):
+        """Visit an AI call node and execute the model with given arguments."""
+        res = RTResult()
+        
+        args = []
+        for arg_node in node.args:
+            arg = res.register(self.visit(arg_node, context))
+            if res.should_return():
+                return res
+            args.append(arg.value)
+            
+        result, error = self.ai_manager.call_model(
+            node.model_name.value,
+            args,
+            node.pos_start,
+            node.pos_end,
+            context
+        )
+        
+        if error:
+            return res.failure(error)
+        return res.success(result)
+
+    def visit_PipeNode(self, node, context):
+        """Visit a pipe node and chain operations."""
+        res = RTResult()
+        
+        left = res.register(self.visit(node.left_node, context))
+        if res.should_return():
+            return res
+            
+        if isinstance(node.right_node, VarAccessNode):
+            # Handle function reference
+            func = context.symbol_table.get(node.right_node.var_name_tok.value)
+            if not isinstance(func, BaseFunction):
+                return res.failure(RTError(
+                    node.right_node.pos_start,
+                    node.right_node.pos_end,
+                    "Expected a function",
+                    context
+                ))
+            args = [left]
+        else:
+            # Handle direct function
+            func = res.register(self.visit(node.right_node, context))
+            if res.should_return():
+                return res
+            args = [left]
+            
+        result = res.register(func.execute(args))
+        if res.should_return():
+            return res
+            
+        return res.success(result)
 
 
 class Function(BaseFunction):

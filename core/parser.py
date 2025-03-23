@@ -16,6 +16,7 @@ from core.nodes import (
     VarAssignNode,
     WhileNode,
 )
+from core.ai_nodes import EmbedNode, AICallNode, PipeNode
 from utils.constants import (
     TT_ARROW,
     TT_COMMA,
@@ -42,6 +43,10 @@ from utils.constants import (
     TT_RPAREN,
     TT_RSQUARE,
     TT_STRING,
+    TT_EMBED,
+    TT_WITH,
+    TT_AI,
+    TT_PIPE,
 )
 
 
@@ -231,7 +236,7 @@ class Parser:
         return res.success(expr)
 
     def expr(self):
-        """Parse an expression, which may include variable assignments or binary operations."""
+        """Parse an expression, including pipeline operations."""
         res = ParseResult()
 
         if self.current_tok.matches(TT_KEYWORD, "VAR"):
@@ -267,18 +272,20 @@ class Parser:
                 return res
             return res.success(VarAssignNode(var_name, expr))
 
-        node = res.register(
-            self.bin_op(self.comp_expr, ((TT_KEYWORD, "AND"), (TT_KEYWORD, "OR")))
-        )
-
+        node = res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, "AND"), (TT_KEYWORD, "OR"))))
         if res.error:
-            return res.failure(
-                InvalidSyntaxError(
-                    self.current_tok.pos_start,
-                    self.current_tok.pos_end,
-                    "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', '[' or 'NOT'",
-                )
-            )
+            return res
+
+        # Handle pipeline operations
+        while self.current_tok.matches(TT_KEYWORD, "PIPE"):
+            res.register_advancement()
+            self.advance()
+
+            right = res.register(self.atom())
+            if res.error:
+                return res
+
+            node = PipeNode(node, right)
 
         return res.success(node)
 
@@ -413,6 +420,18 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(VarAccessNode(tok))
+
+        elif tok.matches(TT_KEYWORD, "EMBED"):
+            embed_expr = res.register(self.embed_expr())
+            if res.error:
+                return res
+            return res.success(embed_expr)
+
+        elif tok.matches(TT_KEYWORD, "AI"):
+            ai_expr = res.register(self.ai_expr())
+            if res.error:
+                return res
+            return res.success(ai_expr)
 
         elif tok.type == TT_LPAREN:
             res.register_advancement()
@@ -999,3 +1018,116 @@ class Parser:
             left = BinOpNode(left, op_tok, right)
 
         return res.success(left)
+
+    def embed_expr(self):
+        """Parse an embedding expression."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+
+        if not self.current_tok.matches(TT_KEYWORD, "EMBED"):
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected 'EMBED'"
+                )
+            )
+
+        res.register_advancement()
+        self.advance()
+
+        text_node = res.register(self.expr())
+        if res.error:
+            return res
+
+        model_node = None
+        if self.current_tok.matches(TT_KEYWORD, "WITH"):
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected model identifier"
+                    )
+                )
+
+            model_node = VarAccessNode(self.current_tok)
+            res.register_advancement()
+            self.advance()
+
+        return res.success(EmbedNode(text_node, model_node))
+
+    def ai_expr(self):
+        """Parse an AI model call expression."""
+        res = ParseResult()
+
+        if not self.current_tok.matches(TT_KEYWORD, "AI"):
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected 'AI'"
+                )
+            )
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected model identifier"
+                )
+            )
+
+        model_name = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '('"
+                )
+            )
+
+        res.register_advancement()
+        self.advance()
+        arg_nodes = []
+
+        if self.current_tok.type == TT_RPAREN:
+            res.register_advancement()
+            self.advance()
+        else:
+            arg_nodes.append(res.register(self.expr()))
+            if res.error:
+                return res
+
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+
+                arg_nodes.append(res.register(self.expr()))
+                if res.error:
+                    return res
+
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected ',' or ')'"
+                    )
+                )
+
+            res.register_advancement()
+            self.advance()
+
+        return res.success(AICallNode(model_name, arg_nodes))

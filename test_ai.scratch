@@ -1,0 +1,10 @@
+# Test embedding generation
+VAR text = "Hello, world!"
+VAR embedding = EMBED text
+
+# Test another embedding
+VAR custom_embedding = EMBED "Test text"
+
+# Print results
+PRINT(embedding)
+PRINT(custom_embedding) 

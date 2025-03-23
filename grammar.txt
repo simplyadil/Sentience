@@ -29,6 +29,9 @@ atom        : INT|FLOAT|STRING|IDENTIFIER
             : for-expr
             : while-expr
             : func-def
+            : embed-expr
+            : ai-expr
+            : pipe-expr
 
 list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
 
@@ -57,3 +60,17 @@ func-def    : KEYWORD:FUN IDENTIFIER?
               LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN
               (ARROW expr)
             | (NEWLINE statements KEYWORD:END)
+
+
+# 1. Embedding Operations
+embed-expr  : KEYWORD:EMBED expr (WITH IDENTIFIER)?
+vec-ops     : vector ((DOT|COSINE) vector)*
+vector      : LSQUARE NUMBER (COMMA NUMBER)* RSQUARE
+           | KEYWORD:VEC IDENTIFIER
+
+# 2. Basic AI Model Calls
+ai-expr     : KEYWORD:AI IDENTIFIER LPAREN (expr (COMMA expr)*)? RPAREN
+
+# 3. Simple Pipeline Operations
+pipe-expr   : expr PIPE IDENTIFIER
+           | expr PIPE func-def

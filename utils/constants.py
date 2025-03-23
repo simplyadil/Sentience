@@ -28,6 +28,13 @@ TT_COMMA = "COMMA"
 TT_ARROW = "ARROW"
 TT_NEWLINE = "NEWLINE"
 TT_EOF = "EOF"
+TT_EMBED = "EMBED"
+TT_WITH = "WITH"
+TT_AI = "AI"
+TT_PIPE = "PIPE"
+TT_VEC = "VEC"
+TT_DOT = "DOT"
+TT_COSINE = "COSINE"
 
 KEYWORDS = [
     "VAR",
@@ -47,6 +54,13 @@ KEYWORDS = [
     "RETURN",
     "CONTINUE",
     "BREAK",
+    "EMBED",
+    "WITH",
+    "AI",
+    "PIPE",
+    "VEC",
+    "DOT",
+    "COSINE"
 ]
 
 
