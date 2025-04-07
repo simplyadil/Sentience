@@ -1,3 +1,4 @@
+from core.nodes import VarAccessNode
 from functions.basefun import BaseFunction
 from utils.errors import RTError
 from execution.runtime import RTResult
